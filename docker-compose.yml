@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: moodcorn-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+      - TMDB_API_KEY=${TMDB_API_KEY}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      - GITHUB_URL=${GITHUB_URL:-https://github.com/yourusername/moodcorn}
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Run the ingestion script as a one-off job
+  # Usage: docker-compose run --rm ingest python -m scripts.ingest_imdb --limit 50000
+  ingest:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: moodcorn-ingest
+    environment:
+      - MONGODB_URI=${MONGODB_URI}
+      - TMDB_API_KEY=${TMDB_API_KEY}
+    env_file:
+      - ./backend/.env
+    entrypoint: ["python", "-m", "scripts.ingest_imdb"]
+    profiles:
+      - ingest
